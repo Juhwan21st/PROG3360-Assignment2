@@ -1,0 +1,36 @@
+services:
+  product-service:
+    build: ./product-service
+    ports:
+      - "6767:6767"
+    networks:
+      - app-network
+    # Compose periodically checks the container by calling Spring Boot Actuator’s '/actuator/health' endpoint.
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6767/actuator/health"]
+      interval: 10s
+      timeout: 5s # 5s per check
+      retries: 3 # 3 failures → container marked unhealthy
+
+  order-service:
+    build: ./order-service
+    ports:
+      - "7676:7676"
+    environment:
+      - SERVER_PRODUCT_URL=http://product-service:6767
+    # Order Service starts only after Product Service is "healthy" (healthcheck passes), not just after the container starts.
+    # reference: https://docs.docker.com/compose/how-tos/startup-order/
+    depends_on:
+      product-service:
+        condition: service_healthy
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7676/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+networks:
+  app-network:
+    driver: bridge
