@@ -6,6 +6,14 @@ public class ProductDTO {
         private double price;
         private int quantity;
 
+        public Long getId(){
+            return id;
+        }
+
+        public String getName(){
+            return name;
+        }
+
         public int getQuantity(){
             return quantity;
         }
