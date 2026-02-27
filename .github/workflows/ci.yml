@@ -84,7 +84,7 @@ jobs:
           curl -sf http://localhost:8082/api/orders
 
       # Integration tests: verify each feature flag correctly affects API response.
-      # sleep 5 gives the Unleash SDK time to poll and pick up the flag change.
+      # sleep 10 gives the Unleash SDK (poll interval=5s) time to pick up the flag change.
       - name: Integration test - premium-pricing flag
         run: |
           # Create a test product at $100 to be used in premium endpoint assertions
