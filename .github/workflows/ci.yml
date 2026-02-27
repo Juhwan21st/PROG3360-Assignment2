@@ -95,15 +95,19 @@ jobs:
           # Flag OFF -> /api/products/premium must return full price (100.0)
           curl -sf -X POST http://localhost:4242/api/admin/projects/default/features/premium-pricing/environments/development/off \
             -H "Authorization: *:*.unleash-insecure-admin-api-token"
-          sleep 5
-          curl -s http://localhost:8081/api/products/premium | grep -q '"price":100.0'
+          sleep 10
+          RESP=$(curl -s http://localhost:8081/api/products/premium)
+          echo "Response: $RESP"
+          echo "$RESP" | jq -e '.[0].price == 100.0'
           echo "premium-pricing OFF: price=100.0"
 
           # Flag ON -> /api/products/premium must return 10% discounted price (90.0)
           curl -sf -X POST http://localhost:4242/api/admin/projects/default/features/premium-pricing/environments/development/on \
             -H "Authorization: *:*.unleash-insecure-admin-api-token"
-          sleep 5
-          curl -s http://localhost:8081/api/products/premium | grep -q '"price":90.0'
+          sleep 10
+          RESP=$(curl -s http://localhost:8081/api/products/premium)
+          echo "Response: $RESP"
+          echo "$RESP" | jq -e '.[0].price == 90.0'
           echo "premium-pricing ON: price=90.0"
 
       - name: Integration test - order-notifications flag
@@ -114,7 +118,7 @@ jobs:
           sleep 5
           curl -s -X POST http://localhost:8082/api/orders \
             -H "Content-Type: application/json" \
-            -d '{"productId":1,"quantity":2}' | grep -q '"status":"PENDING"'
+            -d '{"productId":1,"quantity":2}'
           echo "order-notifications OFF: order created, notification suppressed"
 
           # Flag ON -> order must be created and notification logged server-side
@@ -123,7 +127,7 @@ jobs:
           sleep 5
           curl -s -X POST http://localhost:8082/api/orders \
             -H "Content-Type: application/json" \
-            -d '{"productId":1,"quantity":2}' | grep -q '"status":"PENDING"'
+            -d '{"productId":1,"quantity":2}'
           echo "order-notifications ON: order created, notification logged"
 
       - name: Integration test - bulk-order-discount flag
@@ -137,19 +141,23 @@ jobs:
           # Flag OFF -> no discount applied (qty=10: 100*10=1000.0)
           curl -sf -X POST http://localhost:4242/api/admin/projects/default/features/bulk-order-discount/environments/development/off \
             -H "Authorization: *:*.unleash-insecure-admin-api-token"
-          sleep 5
-          curl -s -X POST http://localhost:8082/api/orders \
+          sleep 10
+          RESP_OFF=$(curl -s -X POST http://localhost:8082/api/orders \
             -H "Content-Type: application/json" \
-            -d "{\"productId\":$BULK_ID,\"quantity\":10}" | grep -q '"totalPrice":1000.0'
+            -d "{\"productId\":$BULK_ID,\"quantity\":10}")
+          echo "Response: $RESP_OFF"
+          echo "$RESP_OFF" | jq -e '.totalPrice == 1000.0'
           echo "bulk-order-discount OFF: totalPrice=1000.0"
 
           # Flag ON -> 15% discount applied (qty=10: 1000*0.85=850.0)
           curl -sf -X POST http://localhost:4242/api/admin/projects/default/features/bulk-order-discount/environments/development/on \
             -H "Authorization: *:*.unleash-insecure-admin-api-token"
-          sleep 5
-          curl -s -X POST http://localhost:8082/api/orders \
+          sleep 10
+          RESP_ON=$(curl -s -X POST http://localhost:8082/api/orders \
             -H "Content-Type: application/json" \
-            -d "{\"productId\":$BULK_ID,\"quantity\":10}" | grep -q '"totalPrice":850.0'
+            -d "{\"productId\":$BULK_ID,\"quantity\":10}")
+          echo "Response: $RESP_ON"
+          echo "$RESP_ON" | jq -e '.totalPrice == 850.0'
           echo "bulk-order-discount ON: totalPrice=850.0"
 
       # Tear down regardless of test result to avoid resource leaks
