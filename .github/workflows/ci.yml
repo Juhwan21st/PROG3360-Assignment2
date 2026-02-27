@@ -23,6 +23,10 @@ jobs:
           java-version: "21"
           cache: maven
 
+      # Grant execute permission to Maven wrapper
+      - name: Make mvnw executable
+        run: chmod +x product-service/mvnw order-service/mvnw
+
       # Use Maven wrapper (./mvnw) instead of mvn - GitHub Actions runner may not have Maven installed globally
       - name: Unit tests (product-service)
         run: ./mvnw -B test
