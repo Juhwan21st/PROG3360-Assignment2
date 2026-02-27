@@ -11,7 +11,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/products")
+@RequestMapping("/api/products")
 public class ProductsControllers {
     private final IProductRepository repository;
     private final FeatureFlagService featureFlagService;

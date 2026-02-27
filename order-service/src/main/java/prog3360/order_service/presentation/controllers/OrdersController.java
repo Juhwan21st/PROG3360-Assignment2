@@ -13,7 +13,7 @@ import prog3360.order_service.service.FeatureFlagService;
 import java.util.List;
 
 @RestController
-@RequestMapping("/orders")
+@RequestMapping("/api/orders")
 public class OrdersController {
 
     private static final Logger logger = LoggerFactory.getLogger(OrdersController.class);
