@@ -36,6 +36,7 @@ public class UnleashConfigBean {
                 .appName(appName)
                 .instanceId(instanceId)
                 .apiKey(apiToken)
+                .fetchTogglesInterval(5)
                 .build();
 
         return new DefaultUnleash(config);
