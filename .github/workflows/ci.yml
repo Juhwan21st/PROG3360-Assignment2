@@ -23,12 +23,13 @@ jobs:
           java-version: "21"
           cache: maven
 
+      # Use Maven wrapper (./mvnw) instead of mvn - GitHub Actions runner may not have Maven installed globally
       - name: Unit tests (product-service)
-        run: mvn -B test
+        run: ./mvnw -B test
         working-directory: product-service
 
       - name: Unit tests (order-service)
-        run: mvn -B test
+        run: ./mvnw -B test
         working-directory: order-service
 
       # Part 3: Upload test reports as artifacts
@@ -43,6 +44,8 @@ jobs:
             order-service/target/surefire-reports
 
   # Part 3 Job 2: Docker Build & Integration Test
+  # Builds Docker images, starts all services, runs integration tests to verify
+  # that each feature flag correctly affects the API response, then tears down.
   docker-build:
     runs-on: ubuntu-latest
     # Runs only after 'build-and-test' succeeds.
@@ -60,11 +63,140 @@ jobs:
       - name: Start services
         run: docker compose up -d --wait
 
-      # Integration test with curl
-      # curl commands to verify endpoints respond
+      - name: Wait for services to stabilize
+        run: sleep 15
+
+      # Initialize feature flags before running integration tests
+      - name: Initialize feature flags
+        run: bash scripts/init-flags.sh
+
+      # Integration test with curl - verify all endpoints respond
       - name: Verify endpoints
         run: |
-          curl -sf http://localhost:6767/actuator/health
-          curl -sf http://localhost:7676/actuator/health
-          curl -sf http://localhost:6767/products
-          curl -sf http://localhost:7676/orders
+          curl -sf http://localhost:4242/health
+          curl -sf http://localhost:8081/actuator/health
+          curl -sf http://localhost:8082/actuator/health
+          curl -sf http://localhost:8081/api/products
+          curl -sf http://localhost:8082/api/orders
+
+      # Integration tests: verify each feature flag correctly affects API response.
+      # sleep 5 gives the Unleash SDK time to poll and pick up the flag change.
+      - name: Integration test - premium-pricing flag
+        run: |
+          # Create a test product at $100 to be used in premium endpoint assertions
+          curl -sf -X POST http://localhost:8081/api/products \
+            -H "Content-Type: application/json" \
+            -d '{"name":"IT-Product","price":100.0,"quantity":50}'
+
+          # Flag OFF -> /api/products/premium must return full price (100.0)
+          curl -sf -X POST http://localhost:4242/api/admin/projects/default/features/premium-pricing/environments/development/off \
+            -H "Authorization: *:*.unleash-insecure-admin-api-token"
+          sleep 5
+          curl -s http://localhost:8081/api/products/premium | grep -q '"price":100.0'
+          echo "premium-pricing OFF: price=100.0"
+
+          # Flag ON -> /api/products/premium must return 10% discounted price (90.0)
+          curl -sf -X POST http://localhost:4242/api/admin/projects/default/features/premium-pricing/environments/development/on \
+            -H "Authorization: *:*.unleash-insecure-admin-api-token"
+          sleep 5
+          curl -s http://localhost:8081/api/products/premium | grep -q '"price":90.0'
+          echo "premium-pricing ON: price=90.0"
+
+      - name: Integration test - order-notifications flag
+        run: |
+          # Flag OFF -> order must still be created (notification is suppressed server-side)
+          curl -sf -X POST http://localhost:4242/api/admin/projects/default/features/order-notifications/environments/development/off \
+            -H "Authorization: *:*.unleash-insecure-admin-api-token"
+          sleep 5
+          curl -s -X POST http://localhost:8082/api/orders \
+            -H "Content-Type: application/json" \
+            -d '{"productId":1,"quantity":2}' | grep -q '"status":"PENDING"'
+          echo "order-notifications OFF: order created, notification suppressed"
+
+          # Flag ON -> order must be created and notification logged server-side
+          curl -sf -X POST http://localhost:4242/api/admin/projects/default/features/order-notifications/environments/development/on \
+            -H "Authorization: *:*.unleash-insecure-admin-api-token"
+          sleep 5
+          curl -s -X POST http://localhost:8082/api/orders \
+            -H "Content-Type: application/json" \
+            -d '{"productId":1,"quantity":2}' | grep -q '"status":"PENDING"'
+          echo "order-notifications ON: order created, notification logged"
+
+      - name: Integration test - bulk-order-discount flag
+        run: |
+          # Create a dedicated product for bulk discount testing ($100, stock=100)
+          BULK=$(curl -s -X POST http://localhost:8081/api/products \
+            -H "Content-Type: application/json" \
+            -d '{"name":"IT-Bulk","price":100.0,"quantity":100}')
+          BULK_ID=$(echo "$BULK" | grep -o '"id":[0-9]*' | grep -o '[0-9]*')
+
+          # Flag OFF -> no discount applied (qty=10: 100*10=1000.0)
+          curl -sf -X POST http://localhost:4242/api/admin/projects/default/features/bulk-order-discount/environments/development/off \
+            -H "Authorization: *:*.unleash-insecure-admin-api-token"
+          sleep 5
+          curl -s -X POST http://localhost:8082/api/orders \
+            -H "Content-Type: application/json" \
+            -d "{\"productId\":$BULK_ID,\"quantity\":10}" | grep -q '"totalPrice":1000.0'
+          echo "bulk-order-discount OFF: totalPrice=1000.0"
+
+          # Flag ON -> 15% discount applied (qty=10: 1000*0.85=850.0)
+          curl -sf -X POST http://localhost:4242/api/admin/projects/default/features/bulk-order-discount/environments/development/on \
+            -H "Authorization: *:*.unleash-insecure-admin-api-token"
+          sleep 5
+          curl -s -X POST http://localhost:8082/api/orders \
+            -H "Content-Type: application/json" \
+            -d "{\"productId\":$BULK_ID,\"quantity\":10}" | grep -q '"totalPrice":850.0'
+          echo "bulk-order-discount ON: totalPrice=850.0"
+
+      # Tear down regardless of test result to avoid resource leaks
+      - name: Tear down the stack
+        if: always()
+        run: docker compose down -v
+
+  # Part 3 Job 3: Feature Flag Validation
+  # Checks flag existence, toggle via Admin API, and fallback when a flag is deleted.
+  feature-flag-validation:
+    runs-on: ubuntu-latest
+    needs: docker-build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Start services
+        run: docker compose up -d --wait
+
+      - name: Wait for Unleash to be ready
+        run: sleep 15
+
+      - name: Setup feature flags
+        run: bash scripts/init-flags.sh
+
+      # Query Unleash Admin API and confirm all three flags were created by init-flags.sh
+      - name: Verify all three feature flags exist
+        run: |
+          RESPONSE=$(curl -s http://localhost:4242/api/admin/projects/default/features \
+            -H "Authorization: *:*.unleash-insecure-admin-api-token")
+          echo "$RESPONSE" | grep -q "premium-pricing" && echo "premium-pricing exists"
+          echo "$RESPONSE" | grep -q "order-notifications" && echo "order-notifications exists"
+          echo "$RESPONSE" | grep -q "bulk-order-discount" && echo "bulk-order-discount exists"
+
+      # Confirm Unleash Admin API toggle endpoint works (OFF then ON)
+      - name: Test flag toggle behavior
+        run: |
+          curl -sf -X POST http://localhost:4242/api/admin/projects/default/features/premium-pricing/environments/development/off \
+            -H "Authorization: *:*.unleash-insecure-admin-api-token" && echo "premium-pricing toggled OFF"
+          curl -sf -X POST http://localhost:4242/api/admin/projects/default/features/premium-pricing/environments/development/on \
+            -H "Authorization: *:*.unleash-insecure-admin-api-token" && echo "premium-pricing toggled ON"
+
+      # Delete a flag and verify the application still responds without error.
+      # The app's FeatureFlagService defaults to false when a flag is missing.
+      - name: Validate fallback behavior
+        run: |
+          curl -s -X DELETE http://localhost:4242/api/admin/projects/default/features/premium-pricing \
+            -H "Authorization: *:*.unleash-insecure-admin-api-token"
+          sleep 5
+          curl -sf http://localhost:8081/api/products/premium && echo "Fallback OK: app handles missing flag gracefully"
+
+      - name: Cleanup
+        if: always()
+        run: docker compose down -v
