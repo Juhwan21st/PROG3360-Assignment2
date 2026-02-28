@@ -2,8 +2,8 @@
 
 ## Team Members
 
-- Nathan Dinh
-- Juhwan Seo
+- Nathan Dinh (8765518)
+- Juhwan Seo (8819123)
 
 ## Project Setup
 
