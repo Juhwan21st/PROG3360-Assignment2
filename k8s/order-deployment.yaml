@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service-blue
+  namespace: prog3360-assignment3
+  labels:
+    app: order-service
+    version: blue
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: order-service
+      version: blue
+  template:
+    metadata:
+      labels:
+        app: order-service
+        version: blue
+    spec:
+      containers:
+        - name: order-service
+          image: order-service:1.0.0
+          ports:
+            - containerPort: 8082
+          envFrom:
+            - configMapRef:
+                name: application-properties-order-service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service-green
+  namespace: prog3360-assignment3
+  labels:
+    app: order-service
+    version: green
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: order-service
+      version: green
+  template:
+    metadata:
+      labels:
+        app: order-service
+        version: green
+    spec:
+      containers:
+        - name: order-service
+          image: order-service:2.0.0
+          ports:
+            - containerPort: 8082
+          envFrom:
+            - configMapRef:
+                name: application-properties-order-service
