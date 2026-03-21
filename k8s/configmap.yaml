@@ -4,19 +4,9 @@ metadata:
   name: application-properties-product-service
   namespace: prog3360-assignment3
 data:
-  spring.application.name: product-service
-  spring.datasource.url: jdbc:h2:mem:productdb
-  spring.datasource.driver-class-name: org.h2.Driver
-  spring.datasource.username: sa
-  spring.datasource.password: ""
-  spring.jpa.hibernate.ddl-auto: update
-  spring.jpa.show-sql: "true"
-  spring.jpa.properties.hibernate.format_sql: "true"
-  server.port: "8081"
-  unleash.api-url: "${UNLEASH_API_URL:http://localhost:4242/api}"
-  unleash.app-name: "${UNLEASH_APP_NAME:product-service}"
-  unleash.instance-id: "${HOSTNAME:product-service-1}"
-  unleash.api-token: "${UNLEASH_API_TOKEN:default:development.unleash-insecure-api-token}"
+  UNLEASH_API_URL: http://unleash-server:4242/api
+  UNLEASH_API_TOKEN: default:development.unleash-insecure-api-token
+  UNLEASH_APP_NAME: product-service
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -24,12 +14,7 @@ metadata:
   name: application-properties-order-service
   namespace: prog3360-assignment3
 data:
-  spring.jpa.hibernate.ddl-auto: update
-  spring.jpa.show-sql: "true"
-  spring.jpa.properties.hibernate.format_sql: "true"
-  server.port: "8082"
-  server.product.url: http://product-service:8081
-  unleash.api-url: "${UNLEASH_API_URL:http://localhost:4242/api}"
-  unleash.app-name: "${UNLEASH_APP_NAME:order-service}"
-  unleash.instance-id: "${HOSTNAME:order-service-1}"
-  unleash.api-token: "${UNLEASH_API_TOKEN:default:development.unleash-insecure-api-token}"
+  SERVER_PRODUCT_URL: http://product-service:8081
+  UNLEASH_API_URL: http://unleash-server:4242/api
+  UNLEASH_API_TOKEN: default:development.unleash-insecure-api-token
+  UNLEASH_APP_NAME: order-service
