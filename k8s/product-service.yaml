@@ -4,6 +4,7 @@ metadata:
   name: product-service
   namespace: prog3360-assignment3
 spec:
+  type: ClusterIP
   selector:
     app: product-service
     version: blue
