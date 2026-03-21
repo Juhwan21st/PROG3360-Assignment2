@@ -1,18 +1,36 @@
 # Prerequisite
 
-## Mac OS Enviorment Setup
+## Environment Setup
 
-This is for macOS — points your terminal's Docker CLI at Minikube's internal Docker daemon so built images are available inside Minikube.
+Points your terminal's Docker CLI at Minikube's internal Docker daemon so built images are available inside Minikube without pushing to a registry.
+
+**macOS / Linux**
 
 ```zsh
 eval $(minikube docker-env)
 ```
 
-This is to unset minkube from docker
+**Windows (PowerShell)**
+
+```powershell
+& minikube -p minikube docker-env --shell powershell | Invoke-Expression
+```
+
+To unset and point back at your local Docker daemon:
+
+**macOS / Linux**
 
 ```zsh
 eval $(minikube docker-env --unset)
 ```
+
+**Windows (PowerShell)**
+
+```powershell
+& minikube -p minikube docker-env --unset --shell powershell | Invoke-Expression
+```
+
+> Note: this only affects the current terminal session. Run it again in each new terminal.
 
 ## Image setup
 
@@ -40,14 +58,14 @@ docker build -t order-service:2.0.0 ./order-service
 
 All resources are deployed into the `prog3360-assignment3` namespace. The following Kubernetes manifests are in the `k8s/` directory:
 
-| File | Kind | Purpose |
-|------|------|---------|
-| `namespace.yaml` | Namespace | Isolates all resources under `prog3360-assignment3` |
-| `configmap.yaml` | ConfigMap (×2) | Stores application config for each service |
-| `product-deployment.yaml` | Deployment (×2) | Blue/green deployments for product-service |
-| `product-service.yaml` | Service (ClusterIP) | Internal access to product-service on port 8081 |
-| `order-deployment.yaml` | Deployment (×2) | Blue/green deployments for order-service |
-| `order-service.yaml` | Service (NodePort) | External access to order-service on port 30082 |
+| File                      | Kind                | Purpose                                             |
+| ------------------------- | ------------------- | --------------------------------------------------- |
+| `namespace.yaml`          | Namespace           | Isolates all resources under `prog3360-assignment3` |
+| `configmap.yaml`          | ConfigMap (×2)      | Stores application config for each service          |
+| `product-deployment.yaml` | Deployment (×2)     | Blue/green deployments for product-service          |
+| `product-service.yaml`    | Service (ClusterIP) | Internal access to product-service on port 8081     |
+| `order-deployment.yaml`   | Deployment (×2)     | Blue/green deployments for order-service            |
+| `order-service.yaml`      | Service (NodePort)  | External access to order-service on port 30082      |
 
 ### Namespace
 
