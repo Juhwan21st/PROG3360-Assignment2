@@ -1,5 +1,3 @@
-# PROG3360 Assignment 3:
-
 # Prerequisite
 
 ## Mac OS Enviorment Setup
@@ -18,12 +16,101 @@ eval $(minikube docker-env --unset)
 
 ## Image setup
 
+**Blue Deployment Images**
+
 ```zsh
 docker build -t product-service:1.0.0 ./product-service
 docker build -t order-service:1.0.0 ./order-service
 ```
 
-# Assignment 3
+**Green Deployment Images**
+
+```zsh
+docker build -t product-service:2.0.0 ./product-service
+docker build -t order-service:2.0.0 ./order-service
+```
+
+---
+
+# PROG3360 Assignment 3: Software Delivery and Release Management
+
+## Part 1
+
+### Overview
+
+All resources are deployed into the `prog3360-assignment3` namespace. The following Kubernetes manifests are in the `k8s/` directory:
+
+| File | Kind | Purpose |
+|------|------|---------|
+| `namespace.yaml` | Namespace | Isolates all resources under `prog3360-assignment3` |
+| `configmap.yaml` | ConfigMap (×2) | Stores application config for each service |
+| `product-deployment.yaml` | Deployment (×2) | Blue/green deployments for product-service |
+| `product-service.yaml` | Service (ClusterIP) | Internal access to product-service on port 8081 |
+| `order-deployment.yaml` | Deployment (×2) | Blue/green deployments for order-service |
+| `order-service.yaml` | Service (NodePort) | External access to order-service on port 30082 |
+
+### Namespace
+
+Creates a dedicated namespace so all assignment resources are isolated from default:
+
+```yaml
+# k8s/namespace.yaml
+name: prog3360-assignment3
+```
+
+### ConfigMap
+
+Two ConfigMaps store per-service configuration — no hardcoded values in the Deployment specs:
+
+- `application-properties-product-service` — app name, DB URL, server port `8081`
+- `application-properties-order-service` — app name, DB URL, server port `8082`, downstream product-service URL `http://product-service:8081`
+
+### Product Service Deployment
+
+- 2 replicas (`product-service-blue` runs `1.0.0`, `product-service-green` runs `2.0.0`)
+- Container port: `8081`
+- Labels: `app: product-service`, `version: blue|green`
+- Pulls config from `application-properties-product-service` ConfigMap via `envFrom`
+
+### Order Service Deployment
+
+- 2 replicas (`order-service-blue` runs `1.0.0`, `order-service-green` runs `2.0.0`)
+- Container port: `8082`
+- Labels: `app: order-service`, `version: blue|green`
+- Pulls config from `application-properties-order-service` ConfigMap via `envFrom`
+
+### Services
+
+**product-service** — ClusterIP (internal only):
+
+```yaml
+type: ClusterIP
+port: 8081 → targetPort: 8081
+selector: app: product-service, version: blue
+```
+
+**order-service** — NodePort (reachable from outside the cluster via Minikube):
+
+```yaml
+type: NodePort
+port: 8082 → targetPort: 8082 → nodePort: 30082
+selector: app: order-service, version: blue
+```
+
+### Apply and Verify
+
+```zsh
+kubectl apply -f k8s/
+kubectl get all -n prog3360-assignment3
+```
+
+Access order-service from outside the cluster:
+
+```zsh
+minikube service order-service -n prog3360-assignment3 --url
+```
+
+---
 
 ## Part 2
 
