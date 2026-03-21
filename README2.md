@@ -93,7 +93,7 @@ selector: app: product-service, version: blue
 
 ```yaml
 type: NodePort
-port: 8082 → targetPort: 8082 → nodePort: 30082
+port: 8082 → targetPort: 8082 → nodePort: 58782
 selector: app: order-service, version: blue
 ```
 
@@ -176,7 +176,38 @@ selector:
   version: blue # change to green to switch traffic
 ```
 
-**Switch traffic to green:**
+---
+
+### Step 1 — Show original version (blue/1.0.0) is live
+
+```zsh
+kubectl get pods -n prog3360-assignment3 --show-labels
+kubectl get service product-service -n prog3360-assignment3
+```
+
+Confirms blue pods are running and the Service selector points to `version: blue`.
+
+---
+
+### Step 2 — Verify green (2.0.0) is deployed and ready
+
+```zsh
+kubectl rollout status deployment/product-service-green -n prog3360-assignment3
+kubectl rollout status deployment/order-service-green -n prog3360-assignment3
+```
+
+Both green Deployments must report `successfully rolled out` before switching traffic.
+
+View rollout history for the green Deployment:
+
+```zsh
+kubectl rollout history deployment/product-service-green -n prog3360-assignment3
+kubectl rollout history deployment/order-service-green -n prog3360-assignment3
+```
+
+---
+
+### Step 3 — Switch traffic to green (2.0.0)
 
 ```zsh
 kubectl patch service product-service -n prog3360-assignment3 \
@@ -186,7 +217,26 @@ kubectl patch service order-service -n prog3360-assignment3 \
   -p '{"spec":{"selector":{"app":"order-service","version":"green"}}}'
 ```
 
-**Rollback to blue:**
+---
+
+### Step 4 — Verify new version is serving
+
+Confirm the Service selector now targets green:
+
+```zsh
+kubectl get service product-service -n prog3360-assignment3 -o jsonpath='{.spec.selector}'
+kubectl get service order-service -n prog3360-assignment3 -o jsonpath='{.spec.selector}'
+```
+
+Hit the order-service endpoint to confirm 2.0.0 is responding:
+
+```zsh
+curl $(minikube service order-service -n prog3360-assignment3 --url)/orders
+```
+
+---
+
+### Bonus — Rollback to blue (1.0.0)
 
 ```zsh
 kubectl patch service product-service -n prog3360-assignment3 \
@@ -196,27 +246,8 @@ kubectl patch service order-service -n prog3360-assignment3 \
   -p '{"spec":{"selector":{"app":"order-service","version":"blue"}}}'
 ```
 
-### Rollout Commands
-
-Use these to monitor and manage rolling updates within a single Deployment (e.g. if you update the image of blue).
-
-**Check rollout status** — watch the update progress in real time:
+Verify rollback:
 
 ```zsh
-kubectl rollout status deployment/product-service-blue -n prog3360-assignment3
-kubectl rollout status deployment/order-service-blue -n prog3360-assignment3
-```
-
-**View rollout history** — see all previous versions of a Deployment:
-
-```zsh
-kubectl rollout history deployment/product-service-blue -n prog3360-assignment3
-kubectl rollout history deployment/order-service-blue -n prog3360-assignment3
-```
-
-**Rollback to previous version** — undoes the last image/config change to that Deployment:
-
-```zsh
-kubectl rollout undo deployment/product-service-blue -n prog3360-assignment3
-kubectl rollout undo deployment/order-service-blue -n prog3360-assignment3
+kubectl get service product-service -n prog3360-assignment3 -o jsonpath='{.spec.selector}'
 ```
