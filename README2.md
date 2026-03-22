@@ -269,3 +269,62 @@ Verify rollback:
 ```zsh
 kubectl get service product-service -n prog3360-assignment3 -o jsonpath='{.spec.selector}'
 ```
+
+# Notes
+
+Cluster
+└── Namespace (prog3360-assignment3)
+├── Node (VM/machine)
+│ └── Pod (managed by a Deployment)
+│ └── Container (your app)
+│
+└── Service (routes traffic to Pods)
+├── port (receives traffic from other pods)
+└── targetPort (forwards traffic to Container)
+
+- apiVersion: v1 — which version of the Kubernetes API to use for this resource
+- kind: ConfigMap — the type of Kubernetes resource you're creating
+- metadata is identifying information about the resource — basically a label/name tag.
+
+- A Cluster contains one or more nodes.
+  - Each node is a VM or physical machine that runs Pods.
+    - These pods contain containers, which are the actual services you are trying to deploy.
+      - Pods are managed by a Deployment, which ensures the desired number of replicas are always running.
+- Pods are used for grouping containers.
+- Redundancy is achieved by the Deployment running multiple pod replicas.
+
+## ConfigMap
+
+- data is where you store the actual configuration values — key value pairs your containers can read as environment variables.
+
+## NameSpace
+
+- Namespace is a way to logically group and isolate within a cluster
+
+## Deployment
+
+- Replicas allows us defined how many copies of a pod to create for redundancy
+
+- Selector matchLabels tells the Deployment which pods it manages
+  - app and version (blue) are the labels used to identify/find these pods
+
+- template the blueprint for each pod the Deployment creates
+  - metadata.labels includes tags which applied to each pod
+
+- containers is a list of containers to run inside the pod
+  - name: order-service — name of the container
+  - image: order-service:1.0.0 — the Docker image to use
+  - containerPort: 8082 — the port your app listens on inside the container (this becomes the targetPort)
+  - envFrom — inject environment variables into the container
+    - configMapRef: application-properties-order-service — pull those env vars from this specific ConfigMap
+
+## Service
+
+Requester → Service (port) → Container (targetPort)
+
+- NodePort opens a port for outside communication to the cluster
+
+- Port is on the service. This is the port number other pods use to reach the Service.
+
+- TargetPort is on the container and is where the service uses this to forward traffic to your app.
+  - This is important when we have multiple containers running within a pod.
