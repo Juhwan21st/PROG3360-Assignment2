@@ -11,4 +11,4 @@ spec:
   ports:
     - port: 8082
       targetPort: 8082
-      nodePort: 58782
+      nodePort: 30782
