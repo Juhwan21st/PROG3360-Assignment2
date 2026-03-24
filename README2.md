@@ -34,16 +34,11 @@ eval $(minikube docker-env --unset)
 
 ## Image setup
 
-**Blue Deployment Images**
+**Blue and Green Deployment Images**
 
 ```zsh
 docker build -t product-service:1.0.0 ./product-service
 docker build -t order-service:1.0.0 ./order-service
-```
-
-**Green Deployment Images**
-
-```zsh
 docker build -t product-service:2.0.0 ./product-service
 docker build -t order-service:2.0.0 ./order-service
 ```
@@ -111,22 +106,67 @@ selector: app: product-service, version: blue
 
 ```yaml
 type: NodePort
-port: 8082 → targetPort: 8082 → nodePort: 58782
+port: 8082 → targetPort: 8082 → nodePort: 30782
 selector: app: order-service, version: blue
 ```
 
-### Apply and Verify
+### Accessing order-service from a browser
 
-```zsh
-kubectl apply -f k8s/
-kubectl get all -n prog3360-assignment3
-```
+NodePort exposes the service on the node's IP at port `30082`. On Linux this works directly, but on macOS/Windows the minikube VM's IP is not routable from the host.
 
-Access order-service from outside the cluster:
+> **macOS note:** On macOS, the minikube node IP (e.g. `192.168.49.2`) is not directly reachable from your browser because minikube runs inside a VM. The command above gives you a `http://127.0.0.1:<port>` URL that works around this.
+
+> **Windows note:** On Windows, minikube runs inside a VM (Hyper-V or VirtualBox) and the node IP is similarly not directly reachable. Use one of the options below instead of navigating to the node IP directly.
+
+**Option 1 — minikube service (recommended)**
+
+macOS / Linux:
 
 ```zsh
 minikube service order-service -n prog3360-assignment3 --url
 ```
+
+Windows (PowerShell):
+
+```powershell
+minikube service order-service -n prog3360-assignment3 --url
+```
+
+Returns a `http://127.0.0.1:<port>` URL you can open directly in a browser. On Windows, minikube may automatically open the URL in your default browser.
+
+**Option 2 — kubectl port-forward**
+
+macOS / Linux:
+
+```zsh
+kubectl port-forward svc/order-service 8082:8082 -n prog3360-assignment3
+```
+
+Windows (PowerShell):
+
+```powershell
+kubectl port-forward svc/order-service 8082:8082 -n prog3360-assignment3
+```
+
+Then open `http://localhost:8082` in your browser.
+
+> **Note:** This is the only option that works for `product-service` since it is type `ClusterIP` (no NodePort). Options 1 and 3 require a NodePort or LoadBalancer service type. Use `kubectl port-forward svc/product-service 8081:8081 -n prog3360-assignment3` and open `http://localhost:8081`.
+
+**Option 3 — minikube tunnel**
+
+macOS / Linux — run in a separate terminal (requires `sudo`):
+
+```zsh
+minikube tunnel
+```
+
+Windows (PowerShell) — run in a separate terminal as Administrator:
+
+```powershell
+minikube tunnel
+```
+
+This adds a network route so that the minikube node IP becomes reachable. You can then open `http://192.168.49.2:30082` directly. The route is removed when you stop the tunnel.
 
 ---
 
@@ -134,16 +174,14 @@ minikube service order-service -n prog3360-assignment3 --url
 
 1. Deploy and verify all pods are running
 
-**kubectl apply -f k8s**
-Reads all YAML files in the k8s/ folder and creates/updates the resources in Kubernetes (Namespace, ConfigMaps, Deployments, Services).
-
-**kubectl get pods -n prog3360-assignment3**
-Lists all pods in the prog3360-assignment3 namespace so you can verify they are running.
-
 ```zsh
+minikube start
+kubectl apply -f k8s/namespace.yaml
 kubectl apply -f k8s/
 kubectl get pods -n prog3360-assignment3
 ```
+
+> You have to run namespace.yaml first
 
 2. Show ReplicaSets created by each Deployment
 
@@ -242,14 +280,10 @@ kubectl patch service order-service -n prog3360-assignment3 \
 Confirm the Service selector now targets green:
 
 ```zsh
-kubectl get service product-service -n prog3360-assignment3 -o jsonpath='{.spec.selector}'
-kubectl get service order-service -n prog3360-assignment3 -o jsonpath='{.spec.selector}'
-```
-
-Hit the order-service endpoint to confirm 2.0.0 is responding:
-
-```zsh
-curl $(minikube service order-service -n prog3360-assignment3 --url)/orders
+kubectl get service product-service -n prog3360-assignment3 \
+  -o jsonpath='{.spec.selector}'
+kubectl get service order-service -n prog3360-assignment3 \
+  -o jsonpath='{.spec.selector}'
 ```
 
 ---
