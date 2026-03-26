@@ -1,5 +1,5 @@
 # product-service v2 (green deployment)
-# Updated fields from blue: name=-green, version=green, image=v2
+# Updated fields from blue: name=-green, version=green, image=v2, APP_VERSION=v2-green
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -26,6 +26,9 @@ spec:
           imagePullPolicy: Never
           ports:
             - containerPort: 8081
+          env:
+            - name: APP_VERSION
+              value: "v2-green"  # overrides ConfigMap APP_VERSION
           envFrom:
             - configMapRef:
                 name: app-config

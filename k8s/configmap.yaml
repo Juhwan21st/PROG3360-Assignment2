@@ -11,4 +11,4 @@ data:
   # downstream service URL (A3 Instruction): only 'order-service' uses this to reach 'product-service'
   SERVER_PRODUCT_URL: "http://product-service:8081"
   # version label (A3 Instruction)
-  APP_VERSION: "v1"
+  APP_VERSION: "v1-blue"
