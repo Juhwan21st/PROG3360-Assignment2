@@ -1,0 +1,5 @@
+# Dedicated namespace for Kubernetes resource isolation
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: prog3360-dinh-seo

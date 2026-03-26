@@ -1,0 +1,31 @@
+# product-service v2 (green deployment)
+# Updated fields from blue: name=-green, version=green, image=v2
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: product-service-green
+  namespace: prog3360-dinh-seo
+  labels:
+    app: product-service
+    version: green
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: product-service
+      version: green
+  template:
+    metadata:
+      labels:
+        app: product-service
+        version: green
+    spec:
+      containers:
+        - name: product-service
+          image: product-service:v2  # green = v2
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8081
+          envFrom:
+            - configMapRef:
+                name: app-config

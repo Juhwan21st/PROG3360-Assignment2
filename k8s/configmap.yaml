@@ -1,0 +1,14 @@
+# ConfigMap - application config
+# Shared environment variables for both services (injected via envFrom)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: prog3360-dinh-seo
+data:
+  # application environment name (A3 Instruction)
+  APP_ENV: "production"
+  # downstream service URL (A3 Instruction): only 'order-service' uses this to reach 'product-service'
+  SERVER_PRODUCT_URL: "http://product-service:8081"
+  # version label (A3 Instruction)
+  APP_VERSION: "v1"

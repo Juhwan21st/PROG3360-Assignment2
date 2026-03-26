@@ -1,0 +1,16 @@
+# Service for product-service
+apiVersion: v1
+kind: Service
+metadata:
+  name: product-service
+  namespace: prog3360-dinh-seo
+spec:
+  # ClusterIP = Internal only. Only order-service calls this internally.
+  type: ClusterIP
+  # selector targets the matching Pods
+  selector:
+    app: product-service
+    version: blue  # initially blue; switch to green via kubectl patch
+  ports:
+    - port: 8081
+      targetPort: 8081  # matches server.port=8081 in application.properties

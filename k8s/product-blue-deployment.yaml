@@ -1,0 +1,32 @@
+# product-service v1 (blue deployment)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: product-service-blue
+  namespace: prog3360-dinh-seo
+  labels:
+    app: product-service
+    version: blue  # environment identifier (blue = current live)
+spec:
+  replicas: 2  # "Use 2 replicas" (A3 Instruction)
+  selector:
+    matchLabels:
+      app: product-service
+      version: blue
+  template:
+    metadata:
+      # "All Pods must use labels" (A3 Instruction)
+      labels:
+        app: product-service
+        version: blue
+    spec:
+      containers:
+        - name: product-service
+          image: product-service:v1  # blue = v1
+          imagePullPolicy: Never  # use local image built in Minikube's Docker daemon
+          ports:
+            - containerPort: 8081  # matches server.port=8081 in application.properties
+          # ConfigMap integration(A3 Instruction): injects all keys from app-config ConfigMap
+          envFrom:
+            - configMapRef:
+                name: app-config

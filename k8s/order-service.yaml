@@ -1,0 +1,17 @@
+# Service for order-service
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-service
+  namespace: prog3360-dinh-seo
+spec:
+  # NodePort: reachable from outside the cluster through Minikube
+  type: NodePort
+  # selector targets the matching Pods
+  selector:
+    app: order-service
+    version: blue  # initially blue; switch to green via kubectl patch
+  ports:
+    - port: 8082
+      targetPort: 8082  # matches server.port=8082 in application.properties
+      nodePort: 30082   # external access: minikube-ip:30082
