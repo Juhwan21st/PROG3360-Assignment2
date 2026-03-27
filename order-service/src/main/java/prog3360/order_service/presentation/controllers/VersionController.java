@@ -8,7 +8,6 @@ import java.util.Map;
 
 // '/version' endpoint for Blue-Green deployment demonstration (A3 Instruction Part 3).
 //
-// How it works:
 //   - Blue pods receive APP_VERSION="v1-blue" from ConfigMap (envFrom).
 //   - Green pods override APP_VERSION="v2-green" via Deployment env (env > envFrom).
 //   - When the Service selector switches to green, /version returns "v2-green".

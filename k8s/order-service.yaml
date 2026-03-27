@@ -14,4 +14,4 @@ spec:
   ports:
     - port: 8082
       targetPort: 8082  # matches server.port=8082 in application.properties
-      nodePort: 30082   # external access: minikube-ip:30082
+      nodePort: 32745   # external access: minikube-ip:32745
