@@ -1,5 +1,8 @@
 package prog3360.product_service.presentations.controllers;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import prog3360.product_service.domain.entity.Product;
 import prog3360.product_service.domain.repository.IProductRepository;
@@ -13,6 +16,9 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/products")
 public class ProductsControllers {
+    // SLF4J Logger pattern (ref. week5 'event-message-demo' lab
+    private static final Logger logger = LoggerFactory.getLogger(ProductsControllers.class);
+
     private final IProductRepository repository;
     private final FeatureFlagService featureFlagService;
 
@@ -26,14 +32,45 @@ public class ProductsControllers {
         return repository.findAll();
     }
 
+    // Assignment 4 - Part 1: Logging
+    // Instruction: "Log output from both services containing at least one INFO, one WARN, and one ERROR line each"
+    // Extended getById() to ResponseEntity<?>, added business event logs on success and not-found paths
+    // - INFO (Event 5): product retrieved successfully, includes id, name, price
+    // - WARN (Event 6): product not found for given ID
     @GetMapping("/{id}")
-    public Product getById(@PathVariable Long id) {
-        return repository.findById(id).orElseThrow();
+    public ResponseEntity<?> getById(@PathVariable Long id) {
+        try {
+            Product product = repository.findById(id).orElseThrow();
+            // Event 5: Successfully retrieving a product
+            logger.info("Product retrieved: id={}, name={}, price={}",
+                    product.getId(), product.getName(), product.getPrice());
+            return ResponseEntity.ok(product);
+        } catch (Exception e) {
+            // Event 6: Product lookup returning no results for a given ID
+            logger.warn("Product not found for ID: {}", id);
+            return ResponseEntity.notFound().build();
+        }
     }
 
+    // Assignment 4 - Part 1: Logging
+    // Extended create() to ResponseEntity<?>, added business event logs on success and failure paths
+    // - INFO (Event 7): product created successfully, includes id, name, price
+    // - ERROR (Event 8): unexpected exception while saving product, includes name, error message
     @PostMapping
-    public Product create(@RequestBody Product product) {
-        return repository.save(product);
+    public ResponseEntity<?> create(@RequestBody Product product) {
+        try {
+            Product saved = repository.save(product);
+            // Event 7: Product created successfully
+            logger.info("Product created: id={}, name={}, price={}",
+                    saved.getId(), saved.getName(), saved.getPrice());
+            return ResponseEntity.ok(saved);
+        } catch (Exception e) {
+            // Event 8: Unexpected exception caught while saving product
+            logger.error("Failed to create product: name={}, error={}",
+                    product.getName(), e.getMessage());
+            return ResponseEntity.internalServerError()
+                    .body("Failed to create product: " + e.getMessage());
+        }
     }
 
     @DeleteMapping("/{id}")
