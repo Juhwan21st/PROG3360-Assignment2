@@ -89,6 +89,15 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-zipkin</artifactId>
 		</dependency>
+
+		<!-- Part 3: Feign trace propagation -->
+		<!-- Lab used RestClient (auto-propagated by starter-zipkin), but our project uses OpenFeign. -->
+		<!-- Without this, Feign HTTP calls do NOT carry traceparent/b3 headers => product-service gets a new traceId => Zipkin shows separate traces. -->
+		<!-- feign-micrometer activates MicrometerObservationCapability which injects trace headers into Feign requests. -->
+		<dependency>
+			<groupId>io.github.openfeign</groupId>
+			<artifactId>feign-micrometer</artifactId>
+		</dependency>
 	</dependencies>
 
 	<dependencyManagement>
