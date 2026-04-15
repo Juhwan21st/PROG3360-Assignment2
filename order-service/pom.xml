@@ -73,7 +73,24 @@
 			<artifactId>spring-boot-starter-webmvc-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+
+		<!-- Assignment 4 -->
+
+		<!-- Part 2: Add Metrics Dependencies -->
+		<!-- spring-boot-starter-actuator is already included, so we just need to add micrometer-registry-prometheus -->
+		<dependency>
+			<groupId>io.micrometer</groupId>
+			<artifactId>micrometer-registry-prometheus</artifactId>
+		</dependency>
+
+		<!-- Part 3: Add Tracing Dependencies -->
+		<!-- Spring Boot 4.x: use starter-zipkin (bundles bridge-brave + reporter + auto-config) -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-zipkin</artifactId>
+		</dependency>
 	</dependencies>
+
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
