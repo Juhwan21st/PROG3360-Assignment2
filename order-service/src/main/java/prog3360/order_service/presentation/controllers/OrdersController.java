@@ -1,5 +1,7 @@
 package prog3360.order_service.presentation.controllers;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -22,10 +24,15 @@ public class OrdersController {
     private final IOrderRepository orderRepository;
     private final FeatureFlagService featureFlagService;
 
-    public OrdersController(IProductClient IProductClient, IOrderRepository orderRepository, FeatureFlagService featureFlagService) {
+    // Assignment 4 - Part 2: Custom business metric (ref. week13 lab MeterRegistry + Counter pattern)
+    // Instruction: "A Counter tracking the total number of orders placed"
+    private final Counter ordersPlacedCounter;
+
+    public OrdersController(IProductClient IProductClient, IOrderRepository orderRepository, FeatureFlagService featureFlagService, MeterRegistry registry) {
         this.IProductClient = IProductClient;
         this.orderRepository = orderRepository;
         this.featureFlagService = featureFlagService;
+        this.ordersPlacedCounter = registry.counter("orders_placed_total");
     }
 
     @GetMapping
@@ -105,6 +112,9 @@ public class OrdersController {
                     savedOrder.getId(), savedOrder.getProductId(), product.getName(),
                     savedOrder.getQuantity(), savedOrder.getTotalPrice());
         }
+
+        // Assignment 4 - Part 2: Increment custom business metric counter
+        ordersPlacedCounter.increment();
 
         return ResponseEntity.ok(savedOrder);
     }

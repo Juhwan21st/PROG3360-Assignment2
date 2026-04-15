@@ -1,0 +1,30 @@
+# Assignment 4 - Part 2: Prometheus configuration as K8s ConfigMap
+
+# In the week13 lab, we created a standalone prometheus.yml file and mounted it via:
+#   docker run -d -p 9090:9090 -v ${PWD}/prometheus.yml:/etc/prometheus/prometheus.yml prom/prometheus
+# Ref: labs/week13/metrics-prometheus-grafana/prometheus/prometheus.yml
+
+# For K8s deployment, the same prometheus.yml content is stored in a ConfigMap
+# so it can be mounted into the Prometheus pod as a volume.
+# The only change: targets use K8s service DNS names (order-service:8082, product-service:8081)
+# instead of host.docker.internal:8080.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: prog3360-dinh-seo
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+
+    scrape_configs:
+      - job_name: 'order-service'
+        metrics_path: /actuator/prometheus
+        static_configs:
+          - targets: ['order-service:8082']
+
+      - job_name: 'product-service'
+        metrics_path: /actuator/prometheus
+        static_configs:
+          - targets: ['product-service:8081']

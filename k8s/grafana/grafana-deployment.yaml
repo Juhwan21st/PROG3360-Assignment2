@@ -1,0 +1,31 @@
+# Assignment 4 - Part 2: Grafana Deployment
+#
+# In the week13 lab, we ran Grafana as a local Docker container:
+#   docker run -d -p 3000:3000 grafana/grafana
+
+# Ref: lectures/PROG3360_week13_Prometheus_Grafana_Tutorial > Step 7
+#
+# This Deployment is the K8s equivalent:
+# - image: grafana/grafana (same image as docker run)
+# - No ConfigMap needed (Grafana has no config file to mount; data source is added via UI)
+# Ref: lectures/PROG3360_week13_A4_Observability_Metrics_Prometheus_Grafana > Deploying Grafana to Minikube
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: prog3360-dinh-seo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+        - name: grafana
+          image: grafana/grafana
+          ports:
+            - containerPort: 3000

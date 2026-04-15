@@ -1,0 +1,17 @@
+# Assignment 4 - Part 2: Prometheus Service
+
+# In the week13 lab, port exposure was handled by docker run -p 9090:9090.
+# In K8s, a Service exposes the pod's port and enables port-forwarding:
+#   kubectl port-forward svc/prometheus 9090:9090 -n prog3360-dinh-seo
+# Ref: lectures/PROG3360_week13_A4_Observability_Metrics_Prometheus_Grafana > Deploying Prometheus to Minikube
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: prog3360-dinh-seo
+spec:
+  selector:
+    app: prometheus
+  ports:
+    - port: 9090
+      targetPort: 9090

@@ -1,0 +1,41 @@
+# Assignment 4 - Part 2: Prometheus Deployment
+
+# In the week13 lab, we ran Prometheus as a local Docker container:
+#   docker run -d -p 9090:9090 -v ${PWD}/prometheus.yml:/etc/prometheus/prometheus.yml prom/prometheus
+
+# Ref: lectures/PROG3360_week13_Prometheus_Grafana_Tutorial > Step 5
+
+# This Deployment is the K8s equivalent:
+# - image: prom/prometheus (same image as docker run)
+# - args: --config.file=... (same config path)
+# - volumeMounts + ConfigMap (replaces -v bind mount with K8s ConfigMap volume)
+# Ref: lectures/PROG3360_week13_A4_Observability_Metrics_Prometheus_Grafana > Deploying Prometheus to Minikube
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: prog3360-dinh-seo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      containers:
+        - name: prometheus
+          image: prom/prometheus
+          args:
+            - "--config.file=/etc/prometheus/prometheus.yml"
+          ports:
+            - containerPort: 9090
+          volumeMounts:
+            - name: prometheus-config
+              mountPath: /etc/prometheus
+      volumes:
+        - name: prometheus-config
+          configMap:
+            name: prometheus-config
