@@ -1,0 +1,29 @@
+# Assignment 4 - Part 3: Zipkin Deployment
+
+# In the week13 lab, we ran Zipkin as a local Docker container:
+#   docker run -d -p 9411:9411 openzipkin/zipkin
+# Ref: lectures/PROG3360_week13_Tracing_Tutorial > Step 6
+
+# This Deployment is the K8s equivalent:
+# - image: openzipkin/zipkin (same image as docker run)
+# - No ConfigMap needed (Zipkin uses in-memory storage by default)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zipkin
+  namespace: prog3360-dinh-seo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: zipkin
+  template:
+    metadata:
+      labels:
+        app: zipkin
+    spec:
+      containers:
+        - name: zipkin
+          image: openzipkin/zipkin
+          ports:
+            - containerPort: 9411

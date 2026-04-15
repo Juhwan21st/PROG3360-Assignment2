@@ -2,6 +2,7 @@ package prog3360.order_service.presentation.controllers;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.tracing.Tracer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -28,11 +29,16 @@ public class OrdersController {
     // Instruction: "A Counter tracking the total number of orders placed"
     private final Counter ordersPlacedCounter;
 
-    public OrdersController(IProductClient IProductClient, IOrderRepository orderRepository, FeatureFlagService featureFlagService, MeterRegistry registry) {
+    // Assignment 4 - Part 3: Distributed tracing (ref. week13 lab tracing OrderController)
+    // Instruction: "Add a custom span to trace a specific operation"
+    private final Tracer tracer;
+
+    public OrdersController(IProductClient IProductClient, IOrderRepository orderRepository, FeatureFlagService featureFlagService, MeterRegistry registry, Tracer tracer) {
         this.IProductClient = IProductClient;
         this.orderRepository = orderRepository;
         this.featureFlagService = featureFlagService;
         this.ordersPlacedCounter = registry.counter("orders_placed_total");
+        this.tracer = tracer;
     }
 
     @GetMapping
@@ -69,53 +75,62 @@ public class OrdersController {
         logger.info("Calling product-service to validate product: productId={}",
                 order.getProductId());
 
-        ProductDTO product;
-        try {
-            product = IProductClient.getProductById(order.getProductId());
-        } catch (Exception e) {
-            // Event 3: Unexpected exception caught in a controller
-            logger.error("Failed to call product-service for productId={}: {}",
-                    order.getProductId(), e.getMessage());
-            return ResponseEntity.internalServerError()
-                    .body("Failed to reach product-service: " + e.getMessage());
+        // Assignment 4 - Part 3: Custom span wrapping the Feign call + business logic
+        // (ref. week13 lab tracing OrderController)
+        var span = tracer.nextSpan().name("order-product-lookup").start();
+        try (var scope = tracer.withSpan(span)) {
+
+            ProductDTO product;
+            try {
+                product = IProductClient.getProductById(order.getProductId());
+            } catch (Exception e) {
+                // Event 3: Unexpected exception caught in a controller
+                logger.error("Failed to call product-service for productId={}: {}",
+                        order.getProductId(), e.getMessage());
+                return ResponseEntity.internalServerError()
+                        .body("Failed to reach product-service: " + e.getMessage());
+            }
+
+            if (product == null) {
+                // Event 4: Product lookup returning no results
+                logger.warn("Product not found for ID: {}", order.getProductId());
+                return ResponseEntity.badRequest()
+                        .body("Product with ID " + order.getProductId() + " does not exist.");
+            }
+            if (product.getQuantity() < order.getQuantity()) {
+                logger.warn("Insufficient stock for productId={}: requested={}, available={}",
+                        order.getProductId(), order.getQuantity(), product.getQuantity());
+                return ResponseEntity.badRequest()
+                        .body("Requested quantity exceeds available stock. Available: "
+                                + product.getQuantity());
+            }
+
+            double totalPrice = product.getPrice() * order.getQuantity();
+
+            // Feature Flag: bulk-order-discount
+            if (featureFlagService.isBulkOrderDiscountEnabled() && order.getQuantity() > 5) {
+                totalPrice = totalPrice * 0.85; // 15% discount
+            }
+
+            order.setTotalPrice(totalPrice);
+            order.setStatus("PENDING");
+            Order savedOrder = orderRepository.save(order);
+
+            // Feature Flag: order-notifications
+            // Event 5: Order created successfully
+            if (featureFlagService.isOrderNotificationsEnabled()) {
+                logger.info("ORDER NOTIFICATION - Order ID: {}, Product ID: {}, Product Name: {}, Quantity: {}, Total Price: {}",
+                        savedOrder.getId(), savedOrder.getProductId(), product.getName(),
+                        savedOrder.getQuantity(), savedOrder.getTotalPrice());
+            }
+
+            // Assignment 4 - Part 2: Increment custom business metric counter
+            ordersPlacedCounter.increment();
+
+            return ResponseEntity.ok(savedOrder);
+
+        } finally {
+            span.end();
         }
-
-        if (product == null) {
-            // Event 4: Product lookup returning no results
-            logger.warn("Product not found for ID: {}", order.getProductId());
-            return ResponseEntity.badRequest()
-                    .body("Product with ID " + order.getProductId() + " does not exist.");
-        }
-        if (product.getQuantity() < order.getQuantity()) {
-            logger.warn("Insufficient stock for productId={}: requested={}, available={}",
-                    order.getProductId(), order.getQuantity(), product.getQuantity());
-            return ResponseEntity.badRequest()
-                    .body("Requested quantity exceeds available stock. Available: "
-                            + product.getQuantity());
-        }
-
-        double totalPrice = product.getPrice() * order.getQuantity();
-
-        // Feature Flag: bulk-order-discount
-        if (featureFlagService.isBulkOrderDiscountEnabled() && order.getQuantity() > 5) {
-            totalPrice = totalPrice * 0.85; // 15% discount
-        }
-
-        order.setTotalPrice(totalPrice);
-        order.setStatus("PENDING");
-        Order savedOrder = orderRepository.save(order);
-
-        // Feature Flag: order-notifications
-        // Event 5: Order created successfully
-        if (featureFlagService.isOrderNotificationsEnabled()) {
-            logger.info("ORDER NOTIFICATION - Order ID: {}, Product ID: {}, Product Name: {}, Quantity: {}, Total Price: {}",
-                    savedOrder.getId(), savedOrder.getProductId(), product.getName(),
-                    savedOrder.getQuantity(), savedOrder.getTotalPrice());
-        }
-
-        // Assignment 4 - Part 2: Increment custom business metric counter
-        ordersPlacedCounter.increment();
-
-        return ResponseEntity.ok(savedOrder);
     }
 }

@@ -12,3 +12,8 @@ data:
   SERVER_PRODUCT_URL: "http://product-service:8081"
   # version label (A3 Instruction)
   APP_VERSION: "v1-blue"
+  
+  # Assignment 4 - Part 3: Zipkin endpoint for tracing (K8s DNS)
+  # In docker-compose/local: falls back to localhost:9411 via application.properties default
+  # In K8s: this env var overrides the default so spans are sent to the Zipkin pod
+  MANAGEMENT_TRACING_EXPORT_ZIPKIN_ENDPOINT: "http://zipkin:9411/api/v2/spans"
