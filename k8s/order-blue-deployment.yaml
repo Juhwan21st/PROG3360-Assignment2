@@ -8,7 +8,8 @@ metadata:
     app: order-service
     version: blue  # environment identifier (blue = current live)
 spec:
-  replicas: 2  # "Use 2 replicas" (A3 Instruction)
+ #replicas: 2  # "Use 2 replicas" (A3 Instruction)
+  replicas: 1  # Changed from 2: H2 in-memory DB requires single replica
   selector:
     matchLabels:
       app: order-service
