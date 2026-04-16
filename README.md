@@ -1,4 +1,4 @@
-# PROG3360 Assignment 3: Kubernetes Deployment with Minikube
+# PROG3360 Assignment 4: Observability Logs, Metrics, and Traces
 
 ## Team Members
 
@@ -7,144 +7,100 @@
 
 ## Project Overview
 
-- Service orchestration with labels and selectors
-This assignment demonstrates Kubernetes deployment capabilities using Minikube, including:
-- ReplicaSet management and scaling
-- Self-healing capabilities
-- Blue-Green Deployment strategy
-
-<details>
-<summary><strong>Quick Start</strong> (click to expand)</summary>
-
-### Prerequisites
-
-- Docker Desktop installed and running
-- Minikube installed
-
-### Setup and Deployment
-
-```powershell
-# 1. Start Minikube
-minikube start
-
-# 2. Connect to Minikube Docker environment (REQUIRED!)
-& minikube -p minikube docker-env --shell powershell | Invoke-Expression
-
-# 3. Set default namespace for convenience
-kubectl config set-context --current --namespace=prog3360-dinh-seo
-
-# 4. Deploy all resources
-kubectl apply -f k8s/namespace.yaml
-kubectl apply -f k8s/configmap.yaml
-kubectl apply -f k8s/product-blue-deployment.yaml
-kubectl apply -f k8s/order-blue-deployment.yaml
-kubectl apply -f k8s/product-service.yaml
-kubectl apply -f k8s/order-service.yaml
-
-# 5. Verify deployment
-kubectl get all
-```
-
-</details>
-
-<details>
-<summary><strong>Access Services</strong> (click to expand)</summary>
-
-```powershell
-# Get order-service URL
-minikube service order-service --url
-
-# Test API (replace PORT with actual number)
-$PORT = 49777
-Invoke-WebRequest http://127.0.0.1:$PORT/version -UseBasicParsing | Select-Object Content
-Invoke-WebRequest http://127.0.0.1:$PORT/api/orders -UseBasicParsing | Select-Object Content
-```
-
-</details>
+- Instrument two Spring Boot microservices running in Minikube with full observability
+- Learn how logs, metrics, and traces work together to monitor and debug a live system
 
 ---
 
-## Demonstration Evidence
-
-### Part 2: ReplicaSet, Scaling, Self-Healing
-
-#### Screenshot #1 - Initial Deployment Status
-
-![Initial Deployment Status](screenshots/01-initial-deployment-status.png)
-
-> Verifies all Kubernetes resources are correctly deployed and running.
-
-- **Deployments**: 2 deployments (`product-service-blue`, `order-service-blue`), each 2/2 READY
-- **ReplicaSets**: 2 RS managing pod lifecycle automatically
-- **Pods**: 4 pods running across both services
-- **Labels**: `app=product-service`, `version=blue` - used by Services for traffic routing
-
-#### Screenshot #2 - Horizontal Scaling
-
-![Scaling Demonstration](screenshots/02-scaling-integrated-result.png)
-
-> Demonstrates that ReplicaSet automatically manages pod count when scaling.
-
-- **Command**: `kubectl scale deployment product-service-blue --replicas=4`
-- **Result**: Pod count increased from 4 → 6 total (4 product + 2 order)
-- **ReplicaSet**: DESIRED count changed from 2 → 4, confirming automatic management
-
-#### Screenshot #3 - Self-Healing
-
-![Self-Healing](screenshots/03-self-healing-integrated-result.png)
-
-> Proves Kubernetes automatically replaces terminated pods to maintain desired state.
-
-- **Before**: 6 pods running (after scaling)
-- **Action**: `kubectl delete pod <pod-name>` - manually killed one product pod
-- **After**: New replacement pod created automatically (new name, AGE: 4s)
-- **Key Point**: Desired replica count of 4 maintained without manual intervention
+## Part 1 – Logging
+- Add structured logging to both services using SLF4J
+- Learn how to use log levels (INFO, WARN, ERROR) appropriately in real business logic
+- Build a correlation ID system so a single request can be tracked across both services in the logs
 
 ---
 
-### Part 3: Blue-Green Deployment
+## Part 2 – Metrics
+- Expose a Prometheus metrics endpoint on both services via Spring Boot Actuator
+- Deploy Prometheus into Kubernetes and configure it to scrape both services
+- Build a live Grafana dashboard to visualize JVM health, HTTP traffic, and custom business data
+- Create a custom metric (e.g. order counter or inventory gauge) tied to real application behavior
+- Configure an alert rule that fires when a meaningful threshold is crossed
 
-#### Screenshot #4 - Green Deployment Setup
+---
 
-![Blue-Green Deployment](screenshots/04-blue-green-deployment-integrated.png)
+## Part 3 – Distributed Tracing
+- Deploy Zipkin into the cluster and connect both services to it
+- Learn how a single request generates a trace with spans across service boundaries
+- Add a custom span around a meaningful operation to measure its duration
+- Connect tracing to logging so trace IDs appear directly in log output
 
-> Shows both blue and green versions running side-by-side with zero downtime.
+---
 
-- **Current version**: `/version` returns `v1-blue` (traffic still on blue)
-- **Green deploy**: `kubectl apply` creates green deployments alongside blue
-- **Pods**: 8 total - 4 blue + 4 green, all Running
-- **Deployments**: All 4 deployments show 2/2 READY
+# Screenshot
 
-#### Screenshot #5 - Traffic Switch & Rollback
+## Part 1 - Application Logging
 
-![Traffic Switch and Rollback](screenshots/05-traffic-switch-and-rollback.png)
+Log output from both services showing INFO, WARN, and ERROR log levels with meaningful data values. The startup logs demonstrate structured logging via SLF4J with database initialization and service readiness messages.
 
-> Demonstrates instant traffic switching and rollback via service selector patching.
+![Service Startup Logs](screenshots/service-startup-logs.png)
 
-- **Step 1**: `kubectl patch service` → selector changed to `version=green`
-- **Step 2**: `/version` → `{"service":"order-service","version":"v2-green"}` ✅
-- **Step 3**: `kubectl patch service` → selector reverted to `version=blue`
-- **Step 4**: `/version` → `{"service":"order-service","version":"v1-blue"}` ✅
+ERROR-level log showing a failed product validation request (404) with traceId and spanId for cross-service debugging.
 
-## Architecture
+![Error Log with Trace and Span IDs](screenshots/error-log-with-trace-span-ids.png)
 
-### Kubernetes Resources
+Successful order creation log lines showing the correlationId propagated across both services for a single request, along with meaningful business data (productId, quantity) and Hibernate SQL output.
 
-| Resource | Purpose | Configuration |
-|----------|---------|---------------|
-| Namespace | Isolation | `prog3360-dinh-seo` |
-| ConfigMap | Environment variables | `APP_VERSION`, `SERVER_PRODUCT_URL` |
-| Deployments | Pod management | Blue/Green separate files |
-| Services | Traffic routing | ClusterIP (product), NodePort (order) |
+![Successful Order Log with Trace IDs](screenshots/successful-order-log-with-trace-ids.png)
 
-### Blue-Green Strategy
+## Part 2 - Metrics with Prometheus and Grafana
 
-```
-Blue Environment (Live)          Green Environment (Standby)
-├── product-service-blue         ├── product-service-green
-│   ├── image: v1               │   ├── image: v2
-│   └── APP_VERSION: v1-blue    │   └── APP_VERSION: v2-green
-└── order-service-blue           └── order-service-green
-    ├── image: v1                   ├── image: v2
-    └── APP_VERSION: v1-blue        └── APP_VERSION: v2-green
-```
+The `/actuator/prometheus` endpoint response from the order-service, exposing JVM and custom application metrics including `orders_placed_total`.
+
+![Prometheus Actuator Metrics Endpoint](screenshots/prometheus-actuator-metrics.png)
+
+Prometheus Targets page confirming both `order-service` and `product-service` are being scraped successfully with state UP.
+
+![Prometheus Targets - Both Services UP](screenshots/prometheus-targets-up.png)
+
+PromQL query in the Prometheus UI returning the custom `orders_placed_total` metric value from the order-service.
+
+![Prometheus orders_placed_total Query](screenshots/prometheus-orders-placed-query.png)
+
+Grafana data source configuration showing the Prometheus connection at `http://prometheus:9090` set as the default data source.
+
+![Grafana Prometheus Data Source](screenshots/grafana-prometheus-datasource.png)
+
+Completed Grafana dashboard with four panels populated with live data: JVM Heap Memory Usage, HTTP Request Rate, Orders Placed Total, and System CPU Usage.
+
+![Grafana Dashboard Overview](screenshots/grafana-dashboard-overview.png)
+
+Grafana alert rule configuration for `High_Error_Rate`, showing the PromQL query that monitors HTTP 4xx/5xx error rates on the order-service.
+
+![Grafana Alert Rule - Query Definition](screenshots/grafana-alert-rule-query.png)
+
+Alert rule threshold set to fire when the error rate exceeds 0.05, with folder and label configuration.
+
+![Grafana Alert Rule - Threshold Configuration](screenshots/grafana-alert-rule-threshold.png)
+
+Alert evaluation interval (30s), pending period (30s), keep-firing duration (1m), and notification routing via Alertmanager to Grafana.
+
+![Grafana Alert Rule - Evaluation and Notifications](screenshots/grafana-alert-rule-evaluation.png)
+
+## Part 3 - Distributed Tracing with Zipkin
+
+Zipkin UI displaying a full distributed trace with 4 spans across both services: the root `http post /api/orders` span, a custom `order-product-lookup` span, the outbound HTTP GET from order-service, and the inbound request on product-service.
+
+![Zipkin Distributed Trace Spans](screenshots/zipkin-distributed-trace-spans.png)
+
+Zipkin service dependency graph showing the order-service to product-service relationship.
+
+![Zipkin Service Dependency Graph](screenshots/zipkin-service-dependency-graph.png)
+
+Log output showing traceId and spanId appearing alongside the correlationId in the order creation log lines, confirming tracing is connected to logging.
+
+![Successful Order Log with Trace IDs](screenshots/successful-order-log-with-trace-ids.png)
+
+Log line showing both traceId and correlationId for a single order creation request with meaningful business data (productId=9999, quantity=2).
+
+![Log Output with TraceId and CorrelationId](screenshots/order-request-log-with-correlation-id.png)
+
